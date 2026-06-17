@@ -1,0 +1,48 @@
+#include <Arduino.h>
+#include <Wire.h>
+
+// ── Konfigurasi ──────────────────────────────
+#define MY_ADDR 0x35   // Harus sama dengan ESP32
+
+volatile byte receivedVal = 0;
+volatile bool newData     = false;
+
+// ── Callback: terima data dari ESP32 ─────────
+void receiveEvent(int bytes) {
+  while (Wire.available()) {
+    receivedVal = Wire.read();
+  }
+  newData = true;
+}
+
+// ── Callback: kirim data ke ESP32 ────────────
+void requestEvent() {
+  // Kirim balik: received value + 0x80 sebagai tanda ACK
+  byte response = receivedVal + 0x80;
+  Wire.write(response);
+}
+
+// ── Setup ─────────────────────────────────────
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(MY_ADDR);
+  Wire.onReceive(receiveEvent);
+  Wire.onRequest(requestEvent);
+
+  Serial.println("=== STM32F1 I2C Slave ===");
+  Serial.print("Listening at addr: 0x");
+  Serial.println(MY_ADDR, HEX);
+}
+
+// ── Loop ──────────────────────────────────────
+void loop() {
+  if (newData) {
+    newData = false;
+    Serial.println("──────────────────────");
+    Serial.print("Diterima dari ESP32: ");
+    Serial.println(receivedVal);
+    Serial.print("Dikirim balik      : 0x");
+    Serial.println((byte)(receivedVal + 0x80), HEX);
+  }
+  delay(10);
+}
